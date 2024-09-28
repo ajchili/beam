@@ -19,6 +19,16 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const cube = new THREE.Mesh(geometry, material);
 scene.add(cube);
 
+const createRoomObjects = () => {
+  const geometry = new THREE.BoxGeometry(5, 5, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const wall = new THREE.Mesh(geometry, material);
+  wall.translateZ(-1);
+  scene.add(wall);
+};
+
+createRoomObjects();
+
 camera.position.z = 5;
 
 function animate() {
