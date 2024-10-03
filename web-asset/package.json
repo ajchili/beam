@@ -2,7 +2,7 @@
   "name": "@beam/web-asset",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {},
   "author": "Kirin Patel <contact@kirinpatel.com>",
   "license": "MIT",
