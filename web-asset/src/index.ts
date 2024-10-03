@@ -2,13 +2,15 @@ import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
 import { Controls } from "./controls.js";
+import { map } from "./map1.js";
 
 const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0e0e0e, 0.05);
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  50
 );
 const stats = new Stats();
 document.body.append(stats.dom);
@@ -26,6 +28,7 @@ const material = new THREE.MeshBasicMaterial({
 });
 const cube = new THREE.Mesh(geometry, material);
 scene.add(cube);
+scene.add(map);
 
 const createRoomObjects = () => {
   const geometry = new THREE.BoxGeometry(5, 5, 1);
@@ -74,19 +77,20 @@ const projectBatched = () => {
   const rows = 75;
   const cols = 75;
 
-  if (Date.now() - lastProjection < 1000) {
+  if (Date.now() - lastProjection < 500) {
     return;
   }
   lastProjection = Date.now();
 
   const raycaster = new THREE.Raycaster();
+  raycaster.far = camera.far;
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
       const x = (i / rows) * 2 - 1 + Math.random() * 0.05;
       const y = (j / cols) * 2 - 1 + Math.random() * 0.05;
       const coords = new THREE.Vector2(x, y);
       raycaster.setFromCamera(coords, camera);
-      const hits = raycaster.intersectObjects([cube, wall], false);
+      const hits = raycaster.intersectObjects(map.children, false);
       if (hits.length > 0) {
         offset++;
         let id: number = offset;
