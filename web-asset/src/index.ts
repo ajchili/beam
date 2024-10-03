@@ -1,9 +1,14 @@
 import * as THREE from "three";
+import Stats from "three/examples/jsm/libs/stats.module.js";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 
-const raycaster = new THREE.Raycaster();
-const raycasterOrigin = new THREE.Vector3();
-const raycasterDirection = new THREE.Vector3();
+let scan = false;
+let moveLeft = false;
+let moveRight = false;
+let moveForward = false;
+let moveBackwards = false;
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -12,6 +17,8 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+const stats = new Stats();
+document.body.append(stats.dom);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -30,7 +37,7 @@ scene.add(cube);
 const createRoomObjects = () => {
   const geometry = new THREE.BoxGeometry(5, 5, 1);
   const material = new THREE.MeshBasicMaterial({
-    color: 0xff0000,
+    color: 0xffffff,
     transparent: true,
     opacity: 0,
   });
@@ -44,34 +51,6 @@ const wall = createRoomObjects();
 
 camera.position.z = 5;
 
-function animate() {
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
-
-  for (let child of scene.children) {
-    if (child.name === "LiDAR") {
-      const distance = child.position.distanceTo(camera.position);
-      if (distance > 25) {
-        child.removeFromParent();
-      }
-      child.getWorldPosition(raycasterOrigin);
-      child.getWorldDirection(raycasterDirection);
-
-      raycaster.set(raycasterOrigin, raycasterDirection);
-
-      const hits = raycaster.intersectObjects([cube, wall], false);
-      if (hits.length > 0) {
-        child.name = "";
-        continue;
-      }
-
-      child.position.add(raycasterDirection.multiplyScalar(-0.1));
-    }
-  }
-
-  renderer.render(scene, camera);
-}
-renderer.setAnimationLoop(animate);
 renderer.domElement.addEventListener("click", () => {
   if (!controls.isLocked) {
     controls.lock();
@@ -80,48 +59,144 @@ renderer.domElement.addEventListener("click", () => {
   }
 });
 
-const createProjectile = () => {
-  const pointDistance = 0.25;
-  for (let i = 0; i < 3; i++) {
-    const xOffset = -0.25 + i * pointDistance;
-    for (let j = 0; j < 3; j++) {
-      const yOffset = -0.25 + j * pointDistance;
-      const geometry = new THREE.SphereGeometry(0.05);
-      const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const mesh = new THREE.Mesh(geometry, material);
-      const vector = new THREE.Vector3(0, 0, -1);
+const pointGeometry = new THREE.SphereGeometry(0.01, 1, 1);
+const maxPoints = 25_000;
+const vertexCount = 512;
+const indexCount = 1024;
+const batchedMesh = new THREE.BatchedMesh(
+  maxPoints,
+  vertexCount,
+  indexCount,
+  new THREE.MeshBasicMaterial()
+);
+const pointGeometryId = batchedMesh.addGeometry(pointGeometry);
+batchedMesh.frustumCulled = false;
+scene.add(batchedMesh);
+const instances: number[] = [];
+let offset = 0;
 
-      vector.applyQuaternion(camera.quaternion);
-      camera.getWorldPosition(mesh.position);
-      vector.applyQuaternion(mesh.quaternion);
+const projectBatched = () => {
+  const rows = 75;
+  const cols = 75;
 
-      mesh.name = "LiDAR";
-      mesh.applyQuaternion(camera.quaternion);
-      mesh.position.x += xOffset;
-      mesh.position.y += yOffset;
-      scene.add(mesh);
+  const raycaster = new THREE.Raycaster();
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const x = (i / rows) * 2 - 1 + Math.random() * 0.05;
+      const y = (j / cols) * 2 - 1 + Math.random() * 0.05;
+      const coords = new THREE.Vector2(x, y);
+      raycaster.setFromCamera(coords, camera);
+      const hits = raycaster.intersectObjects([cube, wall], false);
+      if (hits.length > 0) {
+        offset++;
+        let id: number = offset;
+        if (offset < batchedMesh.maxInstanceCount) {
+          id = batchedMesh.addInstance(pointGeometryId);
+        } else {
+          id = offset % batchedMesh.maxInstanceCount;
+        }
+        if (
+          "material" in hits[0].object &&
+          // @ts-expect-error
+          "color" in hits[0].object.material
+        ) {
+          // @ts-expect-error
+          batchedMesh.setColorAt(id, hits[0].object.material.color);
+        }
+        instances.push(id);
+        const matrix = new THREE.Matrix4();
+        matrix.setPosition(hits[0].point);
+        batchedMesh.setMatrixAt(id, matrix);
+      }
     }
   }
 };
 
-// TODO: Figure out better key commands
-window.addEventListener("keydown", (e) => {
-  if (e.key === "a") {
-    camera.translateX(-0.1);
-  } else if (e.key === "d") {
-    camera.translateX(0.1);
-  }
-  if (e.key === "w") {
-    camera.translateZ(-0.1);
-  } else if (e.key === "s") {
-    camera.translateZ(0.1);
-  }
-});
+const onKeyDown = (event: KeyboardEvent) => {
+  switch (event.code) {
+    case "ArrowUp":
+    case "KeyW":
+      moveForward = true;
+      break;
 
-window.addEventListener("keypress", (e) => {
-  switch (e.key) {
-    case " ":
-      createProjectile();
+    case "ArrowLeft":
+    case "KeyA":
+      moveLeft = true;
+      break;
+
+    case "ArrowDown":
+    case "KeyS":
+      moveBackwards = true;
+      break;
+
+    case "ArrowRight":
+    case "KeyD":
+      moveRight = true;
+      break;
+
+    case "Space":
+      scan = true;
       break;
   }
-});
+};
+const onKeyUp = (event: KeyboardEvent) => {
+  switch (event.code) {
+    case "ArrowUp":
+    case "KeyW":
+      moveForward = false;
+      break;
+
+    case "ArrowLeft":
+    case "KeyA":
+      moveLeft = false;
+      break;
+
+    case "ArrowDown":
+    case "KeyS":
+      moveBackwards = false;
+      break;
+
+    case "ArrowRight":
+    case "KeyD":
+      moveRight = false;
+      break;
+
+    case "Space":
+      scan = false;
+      break;
+  }
+};
+
+document.addEventListener("keydown", onKeyDown);
+document.addEventListener("keyup", onKeyUp);
+
+let prevTime = performance.now();
+
+function animate() {
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
+  stats.update();
+
+  if (scan) {
+    projectBatched();
+  }
+
+  const delta = (performance.now() - prevTime) / 1000;
+
+  velocity.x -= velocity.x * 10.0 * delta;
+  velocity.z -= velocity.z * 10.0 * delta;
+
+  direction.z = Number(moveForward) - Number(moveBackwards);
+  direction.x = Number(moveRight) - Number(moveLeft);
+  direction.normalize(); // this ensures consistent movements in all directions
+
+  if (moveForward || moveBackwards) velocity.z -= direction.z * 100.0 * delta;
+  if (moveLeft || moveRight) velocity.x -= direction.x * 100.0 * delta;
+
+  controls.moveRight(-velocity.x * delta);
+  controls.moveForward(-velocity.z * delta);
+
+  renderer.render(scene, camera);
+  prevTime = performance.now();
+}
+renderer.setAnimationLoop(animate);
