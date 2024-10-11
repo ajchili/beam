@@ -10,40 +10,22 @@ const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  50
+  25
 );
 const stats = new Stats();
 document.body.append(stats.dom);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 document.body.appendChild(renderer.domElement);
 const controls = new Controls(camera, renderer.domElement);
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({
-  color: 0x00ff00,
-  transparent: true,
-  opacity: 0,
-});
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
 scene.add(map);
-
-const createRoomObjects = () => {
-  const geometry = new THREE.BoxGeometry(5, 5, 1);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0,
-  });
-  const wall = new THREE.Mesh(geometry, material);
-  wall.translateZ(-1);
-  scene.add(wall);
-  return wall;
-};
-
-const wall = createRoomObjects();
 
 camera.position.z = 5;
 
@@ -56,7 +38,7 @@ renderer.domElement.addEventListener("click", () => {
 });
 
 const pointGeometry = new THREE.SphereGeometry(0.01, 1, 1);
-const maxPoints = 50_000;
+const maxPoints = 100_000;
 const vertexCount = 512;
 const indexCount = 1024;
 const batchedMesh = new THREE.BatchedMesh(
@@ -65,33 +47,28 @@ const batchedMesh = new THREE.BatchedMesh(
   indexCount,
   new THREE.MeshBasicMaterial()
 );
-const pointGeometryId = batchedMesh.addGeometry(pointGeometry);
 batchedMesh.frustumCulled = false;
+const pointGeometryId = batchedMesh.addGeometry(pointGeometry);
 scene.add(batchedMesh);
 const instances: number[] = [];
 let offset = 0;
 
-let lastProjection = 0;
-
 const projectBatched = () => {
-  const rows = 75;
-  const cols = 75;
-
-  if (Date.now() - lastProjection < 500) {
-    return;
-  }
-  lastProjection = Date.now();
+  const rows = 50;
+  const cols = 50;
 
   const raycaster = new THREE.Raycaster();
   raycaster.far = camera.far;
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
+      if (Math.random() > 0.05) continue;
       const x = (i / rows) * 2 - 1 + Math.random() * 0.05;
       const y = (j / cols) * 2 - 1 + Math.random() * 0.05;
       const coords = new THREE.Vector2(x, y);
       raycaster.setFromCamera(coords, camera);
       const hits = raycaster.intersectObjects(map.children, false);
       if (hits.length > 0) {
+        const hit = hits[0];
         offset++;
         let id: number = offset;
         if (offset < batchedMesh.maxInstanceCount) {
@@ -99,17 +76,20 @@ const projectBatched = () => {
         } else {
           id = offset % batchedMesh.maxInstanceCount;
         }
+        if (offset > batchedMesh.maxInstanceCount * 2) {
+          offset -= batchedMesh.maxInstanceCount;
+        }
         if (
-          "material" in hits[0].object &&
+          "material" in hit.object &&
           // @ts-expect-error
-          "color" in hits[0].object.material
+          "color" in hit.object.material
         ) {
           // @ts-expect-error
-          batchedMesh.setColorAt(id, hits[0].object.material.color);
+          batchedMesh.setColorAt(id, hit.object.material.color);
         }
         instances.push(id);
         const matrix = new THREE.Matrix4();
-        matrix.setPosition(hits[0].point);
+        matrix.setPosition(hit.point);
         batchedMesh.setMatrixAt(id, matrix);
       }
     }
@@ -117,14 +97,19 @@ const projectBatched = () => {
 };
 
 function animate() {
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
   stats.update();
 
   if (controls.pressedKeys.has("Space")) {
     projectBatched();
   }
   controls.handleMovement();
+
+  map.children
+    .filter((child) => child.name === "enemy")
+    .forEach((child) => {
+      child.rotation.x += 0.01;
+      child.rotation.y += 0.01;
+    });
 
   renderer.render(scene, camera);
 }
