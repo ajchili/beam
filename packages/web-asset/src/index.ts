@@ -27,6 +27,9 @@ const controls = new Controls(camera, renderer.domElement);
 
 scene.add(map);
 
+const players = new THREE.Group();
+scene.add(players);
+
 camera.position.z = 5;
 
 renderer.domElement.addEventListener("click", () => {
@@ -66,7 +69,10 @@ const projectBatched = () => {
       const y = (j / cols) * 2 - 1 + Math.random() * 0.05;
       const coords = new THREE.Vector2(x, y);
       raycaster.setFromCamera(coords, camera);
-      const hits = raycaster.intersectObjects(map.children, false);
+      const hits = raycaster.intersectObjects(
+        [...map.children, ...players.children],
+        false
+      );
       if (hits.length > 0) {
         const hit = hits[0];
         offset++;
@@ -114,3 +120,42 @@ function animate() {
   renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(animate);
+
+const ws = new WebSocket("ws://localhost:8080");
+let myId: string;
+ws.addEventListener("message", (event) => {
+  const data = JSON.parse(event.data.toString());
+
+  if ("id" in data) {
+    myId = data.id;
+  }
+
+  if ("positions" in data) {
+    for (const [id, { position }] of Object.entries(data.positions) as any) {
+      if (id === myId) {
+        continue;
+      }
+      let player = players.children.find((child) => child.name === id);
+      if (!player) {
+        player = new THREE.Mesh(
+          new THREE.SphereGeometry(),
+          new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0,
+          })
+        );
+        player.name = id;
+        players.add(player);
+      }
+      player.position.set(position.x, position.y, position.z);
+    }
+  }
+});
+setInterval(() => {
+  ws.send(
+    JSON.stringify({
+      position: camera.position,
+    })
+  );
+}, 100);
