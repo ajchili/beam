@@ -15,7 +15,7 @@ const redMesh = new THREE.MeshBasicMaterial({
 const buildPillarAt = (x: number, z: number) => {
   const pillar = new THREE.Mesh(new THREE.BoxGeometry(1, 25, 1), whiteMesh);
   pillar.name = "pillar";
-  pillar.position.set(x, 10, z);
+  pillar.position.set(x, 11.5, z);
   return pillar;
 };
 
@@ -34,18 +34,18 @@ ground.rotation.x = -Math.PI / 2;
 ground.position.y -= 1;
 map.add(ground);
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 1000; i++) {
   const pillar = buildPillarAt(
-    Math.floor(-50 + 100 * Math.random()),
-    Math.floor(-50 + 100 * Math.random())
+    Math.floor(-250 + 500 * Math.random()),
+    Math.floor(-250 + 500 * Math.random())
   );
   map.add(pillar);
 }
 
 for (let i = 0; i < 10; i++) {
   const pillar = buildEnemyAt(
-    Math.floor(-50 + 100 * Math.random()),
-    Math.floor(-50 + 100 * Math.random())
+    Math.floor(-250 + 500 * Math.random()),
+    Math.floor(-250 + 500 * Math.random())
   );
   map.add(pillar);
 }
