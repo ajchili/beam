@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "build": "vite build"
+  },
   "author": "Kirin Patel <contact@kirinpatel.com>",
   "license": "MIT",
   "dependencies": {
