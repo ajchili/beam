@@ -1,0 +1,14 @@
+{
+  "name": "@beam/empty",
+  "packageManager": "npm@10.7.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.3"
+  }
+}
