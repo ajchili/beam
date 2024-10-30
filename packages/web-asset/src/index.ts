@@ -121,41 +121,49 @@ function animate() {
 }
 renderer.setAnimationLoop(animate);
 
-const ws = new WebSocket("ws://localhost:8080");
-let myId: string;
-ws.addEventListener("message", (event) => {
-  const data = JSON.parse(event.data.toString());
+const connectToServer = () => {
+  const ws = new WebSocket("ws://localhost:8080");
+  let myId: string;
+  ws.addEventListener("open", () => {
+    players.children.forEach((child) => child.removeFromParent());
+  });
+  ws.addEventListener("close", () => connectToServer());
+  ws.addEventListener("message", (event) => {
+    const data = JSON.parse(event.data.toString());
 
-  if ("id" in data) {
-    myId = data.id;
-  }
-
-  if ("positions" in data) {
-    for (const [id, { position }] of Object.entries(data.positions) as any) {
-      if (id === myId) {
-        continue;
-      }
-      let player = players.children.find((child) => child.name === id);
-      if (!player) {
-        player = new THREE.Mesh(
-          new THREE.SphereGeometry(),
-          new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0,
-          })
-        );
-        player.name = id;
-        players.add(player);
-      }
-      player.position.set(position.x, position.y, position.z);
+    if ("id" in data) {
+      myId = data.id;
     }
-  }
-});
-setInterval(() => {
-  ws.send(
-    JSON.stringify({
-      position: camera.position,
-    })
-  );
-}, 100);
+
+    if ("positions" in data) {
+      for (const [id, { position }] of Object.entries(data.positions) as any) {
+        if (id === myId) {
+          continue;
+        }
+        let player = players.children.find((child) => child.name === id);
+        if (!player) {
+          player = new THREE.Mesh(
+            new THREE.SphereGeometry(),
+            new THREE.MeshBasicMaterial({
+              color: 0xffff00,
+              transparent: true,
+              opacity: 0,
+            })
+          );
+          player.name = id;
+          players.add(player);
+        }
+        player.position.set(position.x, position.y, position.z);
+      }
+    }
+  });
+  setInterval(() => {
+    ws.send(
+      JSON.stringify({
+        position: camera.position,
+      })
+    );
+  }, 100);
+};
+
+connectToServer();
