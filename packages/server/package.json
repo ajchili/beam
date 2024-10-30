@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build": "tsc",
     "dev": "tsx --watch src/index.ts"
   },
   "author": "Kirin Patel <contact@kirinpatel.com>",

@@ -5,6 +5,8 @@ import { randomUUID } from "crypto";
 const app = express();
 const wss = new WebSocketServer({ noServer: true });
 
+app.use(express.static("asset"));
+
 const pillarPositions: [number, number][] = [];
 const enemyPositions: [number, number][] = [];
 
