@@ -5,6 +5,30 @@ import { randomUUID } from "crypto";
 const app = express();
 const wss = new WebSocketServer({ noServer: true });
 
+const pillarPositions: [number, number][] = [];
+const enemyPositions: [number, number][] = [];
+
+for (let i = 0; i < 1000; i++) {
+  pillarPositions.push([
+    Math.floor(-250 + 500 * Math.random()),
+    Math.floor(-250 + 500 * Math.random()),
+  ]);
+}
+
+for (let i = 0; i < 10; i++) {
+  enemyPositions.push([
+    Math.floor(-250 + 500 * Math.random()),
+    Math.floor(-250 + 500 * Math.random()),
+  ]);
+}
+
+app.get("/api/map", (_, res) => {
+  res.json({
+    pillarPositions,
+    enemyPositions,
+  });
+});
+
 const positions: Record<string, any> = {};
 
 wss.on("connection", (ws) => {
