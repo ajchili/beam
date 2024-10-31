@@ -131,7 +131,10 @@ getMapFromServer().then((map) => {
   renderer.setAnimationLoop(animate);
 
   const connectToServer = () => {
-    const ws = new WebSocket("ws://localhost:8080");
+    const { hostname, port } = window.location;
+    const ws = new WebSocket(
+      `ws://${hostname}:${hostname === "localhost" ? "8080" : port}`
+    );
     let myId: string;
     ws.addEventListener("open", () => {
       players.children.forEach((child) => child.removeFromParent());
