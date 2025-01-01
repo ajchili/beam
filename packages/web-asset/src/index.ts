@@ -131,15 +131,29 @@ getMapFromServer().then((map) => {
   renderer.setAnimationLoop(animate);
 
   const connectToServer = () => {
-    const { hostname, port } = window.location;
+    const { hostname, port, protocol } = window.location;
+    const websocketProtocol = protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(
-      `ws://${hostname}:${hostname === "localhost" ? "8080" : port}`
+      `${websocketProtocol}//${hostname}:${
+        hostname === "localhost" ? "8080" : port
+      }`
     );
     let myId: string;
+    let messageIntervalId: number;
     ws.addEventListener("open", () => {
       players.children.forEach((child) => child.removeFromParent());
+      messageIntervalId = setInterval(() => {
+        ws.send(
+          JSON.stringify({
+            position: camera.position,
+          })
+        );
+      }, 100);
     });
-    ws.addEventListener("close", () => connectToServer());
+    ws.addEventListener("close", () => {
+      connectToServer();
+      clearTimeout(messageIntervalId);
+    });
     ws.addEventListener("message", (event) => {
       const data = JSON.parse(event.data.toString());
 
@@ -171,13 +185,6 @@ getMapFromServer().then((map) => {
         }
       }
     });
-    setInterval(() => {
-      ws.send(
-        JSON.stringify({
-          position: camera.position,
-        })
-      );
-    }, 100);
   };
 
   connectToServer();
